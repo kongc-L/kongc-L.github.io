@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f5efe8" />
+    <meta name="description" content="角色视觉档案与插画作品展示页面" />
+    <title>角色视觉档案 · Character Archive</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="site-shell">
+      <header class="topbar">
+        <a class="brand" href="#top" aria-label="返回首页">
+          <span class="brand-mark">K</span>
+          <span class="brand-copy">
+            <strong>CHARACTER<br />ARCHIVE</strong>
+            <small>VISUAL NOTES / 001</small>
+          </span>
+        </a>
+        <nav class="nav-links" aria-label="页面导航">
+          <a class="active" href="#gallery">Gallery</a>
+          <a href="#about">About</a>
+        </nav>
+        <button class="menu-button" type="button" aria-label="打开导航菜单" aria-expanded="false">
+          <span></span><span></span>
+        </button>
+      </header>
+
+      <section class="parallax-carousel" id="showcase" aria-labelledby="showcase-title">
+        <canvas class="carousel-particles" aria-hidden="true"></canvas>
+        <div class="carousel-heading">
+          <p class="eyebrow">FEATURED VISUALS / PARALLAX CAROUSEL</p>
+          <h1 id="showcase-title">Worlds in <em>motion.</em></h1>
+          <p class="carousel-heading-note">用鼠标移动视线，或点击两侧箭头探索这组视觉档案。</p>
+        </div>
+
+        <div class="carousel-stage">
+          <button class="carousel-arrow carousel-arrow-prev" type="button" aria-label="查看上一张作品">←</button>
+          <div class="carousel-view" id="carousel-view">
+            <div class="carousel-plane">
+              <div class="carousel-image-frame">
+                <a class="carousel-main-image is-visible" data-layer="0" href="carousel-images/carousel_1.png" target="_blank" rel="noopener" aria-label="在新窗口查看当前作品"></a>
+                <a class="carousel-main-image" data-layer="1" href="carousel-images/carousel_2.png" target="_blank" rel="noopener" aria-label="在新窗口查看当前作品"></a>
+                <span class="carousel-corner-mark" aria-hidden="true"></span>
+              </div>
+              <div class="carousel-front">
+                <div class="carousel-info">
+                  <div class="carousel-copy">
+                    <span class="carousel-serial">01</span>
+                    <h2 class="carousel-title">第二把赤霄</h2>
+                    <p class="carousel-detail">#决战#</p>
+                  </div>
+                  <div class="carousel-markers" aria-label="轮播图进度"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="carousel-arrow carousel-arrow-next" type="button" aria-label="查看下一张作品">→</button>
+        </div>
+
+        <div class="carousel-rail-wrap">
+          <div class="carousel-rail" aria-label="轮播图缩略图列表"></div>
+        </div>
+        <div class="carousel-scroll-note"><span></span> 01 — 18</div>
+      </section>
+
+      <main id="top">
+        <section class="intro" aria-labelledby="page-title">
+          <div class="intro-copy">
+            <p class="eyebrow">A SMALL COLLECTION OF IMAGINED WORLDS</p>
+            <h1 id="page-title">角色，<em>是故事</em><br />留下的温度。</h1>
+            <p class="intro-text">三组不同气质的角色切片，记录柔软、俏皮与一点点神秘感。欢迎慢慢浏览这份小小的视觉档案。</p>
+            <a class="text-link" href="#gallery">探索作品 <span aria-hidden="true">↘</span></a>
+          </div>
+          <div class="intro-note" aria-label="收藏信息">
+            <span class="note-line"></span>
+            <span>CURATED<br />FIGURES<br /><b>03</b></span>
+          </div>
+        </section>
+
+        <section class="gallery-section" id="gallery" aria-labelledby="gallery-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">SELECTED FIGURES</p>
+              <h2 id="gallery-title">Visual archive <span>/ 视觉档案</span></h2>
+            </div>
+            <p class="section-caption">点击任意作品，进入沉浸式预览</p>
+          </div>
+
+          <div class="gallery-grid">
+            <article class="art-card art-card-featured">
+              <button class="art-button" type="button" data-index="0" aria-label="查看作品一：玫瑰礼序">
+                <div class="art-image-wrap">
+                  <img src="images/1.png" alt="粉色头发、身穿黑白女仆服的角色肖像" />
+                  <span class="image-number">01</span>
+                  <span class="view-badge">VIEW <span aria-hidden="true">↗</span></span>
+                </div>
+                <div class="art-meta">
+                  <div>
+                    <p class="art-kicker">ROSE ETIQUETTE</p>
+                    <h3>玫瑰礼序</h3>
+                  </div>
+                  <p class="art-description">温柔外表之下，藏着一枚闪着金色光泽的勋章。</p>
+                </div>
+              </button>
+            </article>
+
+            <article class="art-card art-card-second">
+              <button class="art-button" type="button" data-index="1" aria-label="查看作品二：夏日气泡">
+                <div class="art-image-wrap">
+                  <img src="images/2.png" alt="戴着墨镜、身穿蓝白服装的蓝发角色" />
+                  <span class="image-number">02</span>
+                  <span class="view-badge">VIEW <span aria-hidden="true">↗</span></span>
+                </div>
+                <div class="art-meta">
+                  <div>
+                    <p class="art-kicker">BUBBLE SUMMER</p>
+                    <h3>夏日气泡</h3>
+                  </div>
+                  <p class="art-description">一只墨镜，一点海风，还有不想融化的好心情。</p>
+                </div>
+              </button>
+            </article>
+
+            <article class="art-card art-card-third">
+              <button class="art-button" type="button" data-index="2" aria-label="查看作品三：午后待机">
+                <div class="art-image-wrap">
+                  <img src="images/3.png" alt="坐在地面、背着大型武器的白发角色" />
+                  <span class="image-number">03</span>
+                  <span class="view-badge">VIEW <span aria-hidden="true">↗</span></span>
+                </div>
+                <div class="art-meta">
+                  <div>
+                    <p class="art-kicker">AFTERNOON IDLE</p>
+                    <h3>午后待机</h3>
+                  </div>
+                  <p class="art-description">安静坐下来的时刻，也可以拥有自己的战斗力。</p>
+                </div>
+              </button>
+            </article>
+          </div>
+        </section>
+
+        <section class="about-section" id="about" aria-labelledby="about-title">
+          <div class="about-label">
+            <span class="about-index">A</span>
+            <span>ABOUT<br />THIS SET</span>
+          </div>
+          <div class="about-copy">
+            <h2 id="about-title">每一张图，<br /><em>都是一个入口。</em></h2>
+            <p>把视线停留在角色身上，去发现她们的服装、姿态和那些没有被写出来的背景。这个页面也会随着新的角色继续生长。</p>
+          </div>
+          <div class="about-detail">
+            <span>ARCHIVE STATUS</span>
+            <strong>OPEN / 2026</strong>
+            <span class="detail-dot" aria-hidden="true"></span>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <p>© 2026 KONGC-L / CHARACTER ARCHIVE</p>
+        <a href="#top">BACK TO TOP <span aria-hidden="true">↑</span></a>
+      </footer>
+    </div>
+
+    <div class="lightbox" role="dialog" aria-modal="true" aria-labelledby="lightbox-title" aria-hidden="true">
+      <div class="lightbox-backdrop" data-close></div>
+      <div class="lightbox-panel">
+        <button class="lightbox-close icon-button" type="button" data-close aria-label="关闭预览">×</button>
+        <button class="lightbox-arrow lightbox-prev icon-button" type="button" data-prev aria-label="查看上一张">←</button>
+        <div class="lightbox-media">
+          <img class="lightbox-image" src="images/1.png" alt="" />
+        </div>
+        <div class="lightbox-info">
+          <p class="art-kicker" id="lightbox-kicker">ROSE ETIQUETTE</p>
+          <h2 id="lightbox-title">玫瑰礼序</h2>
+          <p id="lightbox-description">温柔外表之下，藏着一枚闪着金色光泽的勋章。</p>
+          <span class="lightbox-count">01 / 03</span>
+        </div>
+        <button class="lightbox-arrow lightbox-next icon-button" type="button" data-next aria-label="查看下一张">→</button>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
