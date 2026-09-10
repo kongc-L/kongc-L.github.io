@@ -152,8 +152,13 @@ img { display: block; max-width: 100%; }
 .carousel-image-loader i:nth-child(2), .image-loader i:nth-child(2) { animation-delay: 0.12s; }
 .carousel-image-loader i:nth-child(3), .image-loader i:nth-child(3) { animation-delay: 0.24s; }
 .carousel-image-loader i:nth-child(4), .image-loader i:nth-child(4) { animation-delay: 0.36s; }
-.image-loader { position: absolute; z-index: 2; inset: 0; display: flex; align-items: center; justify-content: center; gap: 7px; pointer-events: none; opacity: 0; visibility: hidden; background: rgba(34, 32, 30, 0.08); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); transition: opacity 180ms ease, visibility 180ms ease; }
-.is-image-loading > .image-loader { opacity: 1; visibility: visible; }
+.image-loader { position: absolute; z-index: 4; inset: 0; display: flex; align-items: center; justify-content: center; gap: 7px; pointer-events: none; opacity: 0; visibility: hidden; background: rgba(34, 32, 30, 0.08); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); transition: opacity 180ms ease, visibility 180ms ease; }
+.is-image-loading > .image-loader, .is-image-error > .image-loader { opacity: 1; visibility: visible; }
+.image-loader.is-image-error { background: rgba(34, 32, 30, 0.16); }
+.image-loader.is-image-error i { display: none; }
+.image-loader.is-image-error::after { color: var(--white); content: "IMAGE UNAVAILABLE"; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; }
+img.is-image-pending, img.is-image-failed { opacity: 0; visibility: hidden; }
+img.is-image-ready { opacity: 1; visibility: visible; }
 @keyframes image-bar-grow { 0%, 100% { opacity: 0.42; transform: scaleX(0.22); } 42% { opacity: 1; transform: scaleX(1); } 68% { opacity: 0.72; transform: scaleX(0.52); } }
 .carousel-corner-mark { position: absolute; z-index: 1; right: 17px; bottom: 17px; width: 48px; height: 20px; border-top: 2px solid rgba(255, 253, 250, 0.82); border-right: 2px solid rgba(255, 253, 250, 0.82); transform: skewX(-30deg); pointer-events: none; }
 .carousel-front { position: absolute; z-index: 2; right: -1px; bottom: 30px; left: -1px; pointer-events: none; transform: translateZ(120px); transform-origin: center bottom; will-change: transform; transition: transform 100ms ease-out; }

@@ -65,6 +65,9 @@ const portfolioCollections = {
 const videoItems = [
   { number: 1, video: "images/Video/1.mp4", title: "Video 01", description: "Motion archive artwork." },
   { number: 2, video: "images/Video/2.mp4", title: "Video 02", description: "Motion archive artwork." },
+  { number: 3, video: "images/Video/3.mp4", title: "Video 03", description: "Motion archive artwork." },
+  { number: 4, video: "images/Video/4.mp4", title: "Video 04", description: "Motion archive artwork." },
+  { number: 5, video: "images/Video/5.mp4", title: "Video 05", description: "Motion archive artwork." },
 ];
 /* AUTO-IMPORT:VIDEO:END */
 
@@ -231,8 +234,9 @@ function setOptimizedImage(image, originalSource) {
   // 普通页面只请求低分辨率预览图，预览图缺失时才回退到原图。
   const previewSource = previewImagePath(originalSource);
   const loadingHost = image.parentElement;
+  let loader = null;
   if (loadingHost) {
-    let loader = loadingHost.querySelector(".image-loader");
+    loader = loadingHost.querySelector(".image-loader");
     if (!loader) {
       loader = document.createElement("span");
       loader.className = "image-loader";
@@ -242,27 +246,66 @@ function setOptimizedImage(image, originalSource) {
       loader.innerHTML = "<i></i><i></i><i></i><i></i>";
       loadingHost.appendChild(loader);
     }
+    loadingHost.classList.remove("is-image-error");
     loadingHost.classList.add("is-image-loading");
   }
+  image.removeAttribute("src");
+  image.classList.remove("is-image-ready", "is-image-failed");
+  image.classList.add("is-image-pending");
+  image.setAttribute("aria-hidden", "true");
   image.setAttribute("aria-busy", "true");
   image.dataset.originalSource = originalSource;
-  const finishLoading = () => {
+
+  let settled = false;
+  const markReady = () => {
+    if (settled) return;
+    settled = true;
+    image.classList.remove("is-image-pending");
+    image.classList.add("is-image-ready");
+    image.removeAttribute("aria-hidden");
     if (loadingHost) loadingHost.classList.remove("is-image-loading");
+    if (loadingHost) loadingHost.classList.remove("is-image-error");
+    if (loader) {
+      loader.classList.remove("is-image-error");
+      loader.setAttribute("aria-hidden", "true");
+    }
     image.setAttribute("aria-busy", "false");
   };
-  image.addEventListener("load", finishLoading, { once: true });
-  image.addEventListener("error", () => {
-    if (image.dataset.previewFallback === "true") {
-      finishLoading();
+  const markFailed = () => {
+    if (settled) return;
+    settled = true;
+    image.classList.remove("is-image-pending");
+    image.classList.add("is-image-failed");
+    image.removeAttribute("src");
+    if (loadingHost) loadingHost.classList.remove("is-image-loading");
+    if (loadingHost) loadingHost.classList.add("is-image-error");
+    if (loader) {
+      loader.classList.add("is-image-error");
+      loader.setAttribute("aria-hidden", "false");
+    }
+    image.setAttribute("aria-busy", "false");
+  };
+  const finishAfterDecode = () => {
+    const decodePromise = typeof image.decode === "function" ? image.decode() : Promise.resolve();
+    decodePromise.catch(() => {}).finally(markReady);
+  };
+  const handleImageError = () => {
+    if (image.dataset.previewFallback === "true" || previewSource === originalSource) {
+      markFailed();
       return;
     }
     image.dataset.previewFallback = "true";
-    image.addEventListener("load", finishLoading, { once: true });
-    image.addEventListener("error", finishLoading, { once: true });
+    image.addEventListener("load", finishAfterDecode, { once: true });
+    image.addEventListener("error", markFailed, { once: true });
     image.src = originalSource;
-  }, { once: true });
+  };
+  image.addEventListener("load", finishAfterDecode, { once: true });
+  image.addEventListener("error", handleImageError, { once: true });
   image.src = previewSource;
-  if (image.complete && image.naturalWidth) finishLoading();
+  if (image.complete) {
+    if (image.naturalWidth) finishAfterDecode();
+    else if (image.dataset.previewFallback === "true") markFailed();
+  }
 }
 
 function setLightboxLoading(isLoading) {
