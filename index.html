@@ -223,7 +223,10 @@
         <button class="lightbox-close icon-button" type="button" data-close aria-label="关闭预览">×</button>
         <button class="lightbox-arrow lightbox-prev icon-button" type="button" data-prev aria-label="查看上一张">←</button>
         <div class="lightbox-media">
-          <img class="lightbox-image" src="images/1.png" alt="" draggable="false" />
+          <div class="lightbox-loader" role="status" aria-label="正在加载高清原图" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <img class="lightbox-image" src="images/_preview/Gallery/1.jpg" loading="lazy" decoding="async" alt="" draggable="false" />
           <div class="lightbox-zoom-controls" aria-label="图片缩放控制">
             <button class="zoom-button" type="button" data-zoom-out aria-label="缩小图片">−</button>
             <button class="zoom-level" type="button" data-zoom-reset aria-label="恢复图片原始大小">100%</button>

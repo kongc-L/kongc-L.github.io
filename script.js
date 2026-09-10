@@ -180,6 +180,7 @@ const lightboxExtra = document.querySelector("#lightbox-extra");
 const lightboxModelRow = document.querySelector(".lightbox-model-row");
 const lightboxExtraRow = document.querySelector(".lightbox-extra-row");
 const lightboxMedia = document.querySelector(".lightbox-media");
+const lightboxLoader = document.querySelector(".lightbox-loader");
 const zoomOutButton = document.querySelector("[data-zoom-out]");
 const zoomResetButton = document.querySelector("[data-zoom-reset]");
 const zoomInButton = document.querySelector("[data-zoom-in]");
@@ -207,6 +208,83 @@ let dragStartX = 0;
 let dragStartY = 0;
 let dragOriginX = 0;
 let dragOriginY = 0;
+let lightboxOriginalSource = "";
+let lightboxPreviewSource = "";
+let lightboxOriginalLoaded = false;
+let lightboxOriginalLoading = false;
+let lightboxOriginalFailed = false;
+let lightboxLoadToken = 0;
+
+function previewImagePath(source) {
+  if (!source || !source.startsWith("images/") || source.startsWith("images/_preview/")) {
+    return source;
+  }
+  const relativePath = source.slice("images/".length);
+  const lastSlash = relativePath.lastIndexOf("/");
+  const directory = lastSlash >= 0 ? relativePath.slice(0, lastSlash + 1) : "";
+  const fileName = relativePath.slice(lastSlash + 1).replace(/\.[^.]+$/, ".jpg");
+  return "images/_preview/" + directory + fileName;
+}
+
+function setOptimizedImage(image, originalSource) {
+  if (!image || !originalSource) return;
+  // 普通页面只请求低分辨率预览图，预览图缺失时才回退到原图。
+  const previewSource = previewImagePath(originalSource);
+  image.dataset.originalSource = originalSource;
+  image.addEventListener("error", () => {
+    if (image.dataset.previewFallback === "true") return;
+    image.dataset.previewFallback = "true";
+    image.src = originalSource;
+  }, { once: true });
+  image.src = previewSource;
+}
+
+function setLightboxLoading(isLoading) {
+  lightboxMedia.classList.toggle("is-loading", isLoading);
+  lightboxImage.setAttribute("aria-busy", String(isLoading));
+  if (lightboxLoader) lightboxLoader.setAttribute("aria-hidden", String(!isLoading));
+}
+
+function requestLightboxOriginal() {
+  // 打开预览时不读取大图，只有用户第一次放大时才请求原始文件。
+  if (
+    !lightboxOriginalSource ||
+    lightboxOriginalLoaded ||
+    lightboxOriginalLoading ||
+    lightboxOriginalFailed
+  ) {
+    return;
+  }
+
+  const requestToken = lightboxLoadToken;
+  lightboxOriginalLoading = true;
+  setLightboxLoading(true);
+
+  const originalImage = new Image();
+  originalImage.decoding = "async";
+  originalImage.onload = async () => {
+    try {
+      if (typeof originalImage.decode === "function") await originalImage.decode();
+    } catch {
+      // The browser can still display the decoded image if decode() is unavailable.
+    }
+    if (requestToken !== lightboxLoadToken) return;
+    lightboxOriginalLoading = false;
+    lightboxOriginalLoaded = true;
+    lightboxOriginalFailed = false;
+    lightboxImage.classList.add("is-hires");
+    lightboxImage.src = lightboxOriginalSource;
+    setLightboxLoading(false);
+    applyLightboxTransform();
+  };
+  originalImage.onerror = () => {
+    if (requestToken !== lightboxLoadToken) return;
+    lightboxOriginalLoading = false;
+    lightboxOriginalFailed = true;
+    setLightboxLoading(false);
+  };
+  originalImage.src = lightboxOriginalSource;
+}
 
 function clampLightboxPan(panX = lightboxPanX, panY = lightboxPanY) {
   const mediaWidth = lightboxMedia.clientWidth;
@@ -254,11 +332,13 @@ function setLightboxPan(nextPanX, nextPanY) {
 }
 
 function updateLightboxZoom(nextZoom, resetPan = false) {
+  const previousZoom = lightboxZoom;
   lightboxZoom = Math.max(0.5, Math.min(3, nextZoom));
   if (resetPan) {
     lightboxPanX = 0;
     lightboxPanY = 0;
   }
+  if (lightboxZoom > 1 && previousZoom <= 1) requestLightboxOriginal();
   applyLightboxTransform();
   zoomResetButton.textContent = Math.round(lightboxZoom * 100) + "%";
 }
@@ -267,8 +347,21 @@ function renderArtwork(index) {
   if (!activeLightboxItems.length) return;
   currentIndex = (index + activeLightboxItems.length) % activeLightboxItems.length;
   const artwork = activeLightboxItems[currentIndex];
+  lightboxLoadToken += 1;
+  lightboxOriginalSource = artwork.image;
+  lightboxPreviewSource = previewImagePath(artwork.image);
+  lightboxOriginalLoaded = false;
+  lightboxOriginalLoading = false;
+  lightboxOriginalFailed = false;
+  setLightboxLoading(false);
   updateLightboxZoom(1, true);
-  lightboxImage.src = artwork.image;
+  lightboxImage.classList.remove("is-hires");
+  lightboxImage.onerror = () => {
+    if (lightboxOriginalSource === artwork.image && lightboxImage.src !== new URL(artwork.image, document.baseURI).href) {
+      lightboxImage.src = artwork.image;
+    }
+  };
+  lightboxImage.src = lightboxPreviewSource || artwork.image;
   lightboxImage.alt = artwork.alt;
   lightboxKicker.textContent = artwork.kicker;
   lightboxTitle.textContent = artwork.title;
@@ -316,7 +409,7 @@ function buildPortfolioGalleries() {
       card.innerHTML =
         '<button class="portfolio-card-button" type="button" aria-label="查看' + item.title + '">' +
         '<div class="portfolio-image-wrap">' +
-        '<img src="' + item.image + '" alt="' + item.alt + '" loading="lazy" />' +
+        '<img alt="' + item.alt + '" loading="lazy" decoding="async" />' +
         '<span class="portfolio-card-number">' + String(index + 1).padStart(2, "0") + '</span>' +
         '<span class="portfolio-card-view">VIEW ↗</span>' +
         '</div>' +
@@ -326,6 +419,7 @@ function buildPortfolioGalleries() {
         '</div>' +
         '</button>';
       card.querySelector(".portfolio-card-button").addEventListener("click", () => openPortfolioLightbox(items, index));
+      setOptimizedImage(card.querySelector("img"), item.image);
       gallery.appendChild(card);
     });
   });
@@ -377,9 +471,10 @@ function buildEditorialGallery(grid, items, notes, type) {
     const card = document.createElement("article");
     card.className = "archive-card";
     card.innerHTML =
-      '<div class="archive-media"><img src="' + item.image + '" alt="' + (note.title || item.alt) + '" loading="lazy" /><span class="archive-card-number">' + String(number).padStart(2, "0") + '</span><span class="archive-card-view">' + (type === "workflow" ? "PROCESS" : "PROJECT") + ' ↗</span></div>' +
+      '<div class="archive-media"><img alt="' + (note.title || item.alt) + '" loading="lazy" decoding="async" /><span class="archive-card-number">' + String(number).padStart(2, "0") + '</span><span class="archive-card-view">' + (type === "workflow" ? "PROCESS" : "PROJECT") + ' ↗</span></div>' +
       '<div class="archive-card-meta"><div><p class="archive-eyebrow">' + (note.eyebrow || (type === "workflow" ? "PROCESS NOTE / " : "PROJECT / ") + String(number).padStart(2, "0")) + '</p><h2>' + (note.title || (type === "workflow" ? "Workflow " : "Project ") + String(number).padStart(2, "0")) + '</h2></div><p>' + (note.description || (type === "workflow" ? "在 workflowNotes 中填写这张流程图的说明。" : "在 projectNotes 中填写这个项目的说明。")) + '</p></div>';
     grid.appendChild(card);
+    setOptimizedImage(card.querySelector(".archive-media img"), item.image);
   });
 }
 
@@ -484,10 +579,11 @@ function renderProjectPage() {
       shot.className = "project-shot " + getProjectShotClass(item.fileName, isMain);
       shot.innerHTML =
         '<button type="button" class="project-shot-button" aria-label="查看' + escapeProjectText(note.title + "：" + shotLabel) + '">' +
-        '<span class="project-shot-media"><img src="' + escapeProjectText(item.image) + '" alt="' + escapeProjectText(shotLabel) + '" loading="lazy" /><span class="project-shot-view">VIEW ↗</span></span>' +
+        '<span class="project-shot-media"><img alt="' + escapeProjectText(shotLabel) + '" loading="lazy" decoding="async" /><span class="project-shot-view">VIEW ↗</span></span>' +
         '<span class="project-shot-caption"><span>' + escapeProjectText(shotLabel) + '</span><span>' + String(itemIndex + 1).padStart(2, "0") + '</span></span>' +
         '</button>';
       shot.querySelector(".project-shot-button").addEventListener("click", () => openPortfolioLightbox(lightboxItems, itemIndex));
+      setOptimizedImage(shot.querySelector("img"), item.image);
       shotGrid.appendChild(shot);
     });
 
@@ -696,7 +792,7 @@ function renderSelectedGallery() {
     card.innerHTML =
       '<button class="art-button" type="button" aria-label="查看作品：' + artwork.title + '">' +
       '<div class="art-image-wrap">' +
-      '<img src="' + artwork.image + '" alt="' + artwork.alt + '" loading="lazy" />' +
+      '<img alt="' + artwork.alt + '" loading="lazy" decoding="async" />' +
       '<span class="image-number">' + String(index + 1).padStart(2, "0") + '</span>' +
       '<span class="view-badge">VIEW <span aria-hidden="true">↗</span></span>' +
       '</div>' +
@@ -706,6 +802,7 @@ function renderSelectedGallery() {
       '</div>' +
       '</button>';
     card.querySelector(".art-button").addEventListener("click", () => openLightbox(index));
+    setOptimizedImage(card.querySelector("img"), artwork.image);
     const columnIndex = columnMap[index] ?? (index % 2);
     columns[columnIndex].appendChild(card);
   });
@@ -797,10 +894,11 @@ function renderBoardImages() {
     tile.setAttribute("aria-label", "查看图片：" + item.title);
     tile.innerHTML =
       '<span class="image-board-media">' +
-      '<img src="' + item.image + '" alt="' + item.alt + '" />' +
+      '<img alt="' + item.alt + '" loading="lazy" decoding="async" />' +
       '<span class="image-board-tile-label">' + String(index + 1).padStart(2, "0") + '</span>' +
       '</span>';
     const tileImage = tile.querySelector(".image-board-media img");
+    setOptimizedImage(tileImage, item.image);
     tileImage.style.objectPosition = item.position || "center center";
     tileImage.style.objectFit = item.fit || "cover";
     tile.addEventListener("click", () => openPortfolioLightbox(imageBoardItems, index));
@@ -949,17 +1047,31 @@ function carouselImage(index) {
   return item && item[2] ? item[2] : "images/Banner/" + String(index + 1) + ".png";
 }
 
-function preloadCarouselImage(index) {
-  const source = carouselImage(index);
-  if (carouselImageCache.has(source)) return carouselImageCache.get(source);
+function carouselDisplayImage(index) {
+  return previewImagePath(carouselImage(index));
+}
 
+function preloadCarouselImage(index) {
+  const originalSource = carouselImage(index);
+  if (carouselImageCache.has(originalSource)) return carouselImageCache.get(originalSource);
+
+  const previewSource = carouselDisplayImage(index);
   const promise = new Promise((resolve) => {
-    const image = new Image();
-    image.onload = () => resolve(true);
-    image.onerror = () => resolve(false);
-    image.src = source;
+    const previewImage = new Image();
+    previewImage.onload = () => resolve(previewSource);
+    previewImage.onerror = () => {
+      if (previewSource === originalSource) {
+        resolve(originalSource);
+        return;
+      }
+      const originalImage = new Image();
+      originalImage.onload = () => resolve(originalSource);
+      originalImage.onerror = () => resolve(originalSource);
+      originalImage.src = originalSource;
+    };
+    previewImage.src = previewSource;
   });
-  carouselImageCache.set(source, promise);
+  carouselImageCache.set(originalSource, promise);
   return promise;
 }
 
@@ -979,7 +1091,6 @@ function buildCarouselControls() {
     thumb.dataset.index = String(index);
     thumb.setAttribute("aria-label", "查看第 " + String(index + 1) + " 张作品：" + item[0]);
     thumb.innerHTML = '<span class="carousel-thumb-image"></span><span class="carousel-thumb-label">' + item[0] + "</span>";
-    thumb.querySelector(".carousel-thumb-image").style.backgroundImage = "url('" + carouselImage(index) + "')";
     thumb.addEventListener("click", () => switchCarousel(index));
     carouselRail.appendChild(thumb);
   });
@@ -999,6 +1110,17 @@ function updateCarouselMeta(index) {
   });
 }
 
+function loadCarouselThumb(thumb, index) {
+  if (!thumb || thumb.dataset.loaded === "true" || thumb.dataset.loading === "true") return;
+  thumb.dataset.loading = "true";
+  const thumbImage = thumb.querySelector(".carousel-thumb-image");
+  preloadCarouselImage(index).then((source) => {
+    thumbImage.style.backgroundImage = "url('" + source + "')";
+    thumb.dataset.loaded = "true";
+    thumb.dataset.loading = "false";
+  });
+}
+
 function positionCarouselThumbs() {
   const thumbs = [...carouselRail.querySelectorAll(".carousel-thumb")];
   if (!thumbs.length) return;
@@ -1015,6 +1137,7 @@ function positionCarouselThumbs() {
     const visible = index >= firstIndex && index < firstIndex + visibleCount;
     thumb.style.transform = "translateX(" + left + "px) scale(" + (index === carouselIndex ? "1.03" : "0.96") + ")";
     thumb.classList.toggle("is-visible", visible);
+    if (visible) loadCarouselThumb(thumb, index);
   });
 }
 
@@ -1033,12 +1156,11 @@ function switchCarousel(nextIndex, direction) {
   const transitionToken = ++carouselTransitionToken;
   carouselTransitioning = true;
 
-  preloadCarouselImage(normalizedIndex).then(() => {
+  preloadCarouselImage(normalizedIndex).then((source) => {
     if (transitionToken !== carouselTransitionToken) return;
 
-    const source = carouselImage(normalizedIndex);
     newLayer.style.backgroundImage = "url('" + source + "')";
-    newLayer.href = source;
+    newLayer.href = carouselImage(normalizedIndex);
     newLayer.style.transformOrigin = moveDirection === "left" ? "right bottom" : "left top";
     oldLayer.style.transformOrigin = moveDirection === "left" ? "left top" : "right bottom";
     newLayer.classList.remove("is-visible", "is-leaving", "is-entering");
@@ -1081,10 +1203,16 @@ function switchCarousel(nextIndex, direction) {
 function initializeCarousel() {
   if (!carouselRoot || !carouselItems.length) return;
   buildCarouselControls();
-  preloadCarouselImage(0);
-  if (carouselItems.length > 1) preloadCarouselImage(1);
-  carouselLayers[0].style.backgroundImage = "url('" + carouselImage(0) + "')";
-  carouselLayers[1].style.backgroundImage = "url('" + carouselImage(carouselItems.length > 1 ? 1 : 0) + "')";
+  preloadCarouselImage(0).then((source) => {
+    carouselLayers[0].style.backgroundImage = "url('" + source + "')";
+  });
+  if (carouselItems.length > 1) {
+    preloadCarouselImage(1).then((source) => {
+      carouselLayers[1].style.backgroundImage = "url('" + source + "')";
+    });
+  } else {
+    carouselLayers[1].style.backgroundImage = "url('" + carouselDisplayImage(0) + "')";
+  }
   updateCarouselMeta(0);
   positionCarouselThumbs();
 
