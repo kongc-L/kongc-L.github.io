@@ -303,22 +303,14 @@ function setOptimizedImage(image, originalSource) {
     const decodePromise = typeof image.decode === "function" ? image.decode() : Promise.resolve();
     decodePromise.catch(() => {}).finally(markReady);
   };
-  const handleImageError = () => {
-    if (image.dataset.previewFallback === "true" || previewSource === originalSource) {
-      markFailed();
-      return;
-    }
-    image.dataset.previewFallback = "true";
-    image.addEventListener("load", finishAfterDecode, { once: true });
-    image.addEventListener("error", markFailed, { once: true });
-    image.src = originalSource;
-  };
+  // 普通页面只允许加载预览图。原图只能由 Lightbox 的放大操作请求。
+  const handleImageError = () => markFailed();
   image.addEventListener("load", finishAfterDecode, { once: true });
   image.addEventListener("error", handleImageError, { once: true });
   image.src = previewSource;
   if (image.complete) {
     if (image.naturalWidth) finishAfterDecode();
-    else if (image.dataset.previewFallback === "true") markFailed();
+    else markFailed();
   }
 }
 
@@ -446,11 +438,6 @@ function renderArtwork(index) {
   };
   lightboxImage.onerror = () => {
     if (artworkToken !== lightboxLoadToken) return;
-    if (lightboxOriginalSource === artwork.image && lightboxImage.src !== new URL(artwork.image, document.baseURI).href) {
-      setLightboxLoading(true);
-      lightboxImage.src = artwork.image;
-      return;
-    }
     setLightboxLoading(false);
   };
   lightboxImage.src = lightboxPreviewSource || artwork.image;
@@ -679,7 +666,7 @@ function renderProjectPage() {
       shot.className = "project-shot " + getProjectShotClass(item.fileName, isMain);
       shot.innerHTML =
         '<button type="button" class="project-shot-button" aria-label="查看' + escapeProjectText(note.title + "：" + shotLabel) + '">' +
-        '<span class="project-shot-media"><img alt="' + escapeProjectText(shotLabel) + '" loading="lazy" decoding="async" /><span class="project-shot-view">VIEW ↗</span></span>' +
+        '<span class="project-shot-media"><img alt="' + escapeProjectText(shotLabel) + '" loading="eager" decoding="async" /><span class="project-shot-view">VIEW ↗</span></span>' +
         '<span class="project-shot-caption"><span>' + escapeProjectText(shotLabel) + '</span><span>' + String(itemIndex + 1).padStart(2, "0") + '</span></span>' +
         '</button>';
       shot.querySelector(".project-shot-button").addEventListener("click", () => openPortfolioLightbox(lightboxItems, itemIndex));
