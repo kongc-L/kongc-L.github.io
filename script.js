@@ -56,6 +56,14 @@ const portfolioCollections = {
     { image: "images/Realistic/14.png", alt: "Realistic 14", title: "Realistic 14", description: "Realistic collection artwork.", model: "Krea2", extra: "" },
     { image: "images/Realistic/15.png", alt: "Realistic 15", title: "Realistic 15", description: "Realistic collection artwork.", model: "Krea2", extra: "" },
     { image: "images/Realistic/16.png", alt: "Realistic 16", title: "Realistic 16", description: "Realistic collection artwork.", model: "Krea2", extra: "" },
+    { image: "images/Realistic/17.png", alt: "Realistic 17", title: "Realistic 17", description: "Realistic collection artwork.", model: "Krea2", extra: "" },
+    { image: "images/Realistic/18.png", alt: "Realistic 18", title: "Realistic 18", description: "Realistic collection artwork.", model: "Krea2", extra: "" },
+    { image: "images/Realistic/19.png", alt: "Realistic 19", title: "Realistic 19", description: "Realistic collection artwork.", model: "Krea2", extra: "" },
+    { image: "images/Realistic/20.png", alt: "Realistic 20", title: "Realistic 20", description: "Realistic collection artwork.", model: "Krea2", extra: "" },
+    { image: "images/Realistic/21.png", alt: "Realistic 21", title: "Realistic 21", description: "Realistic collection artwork.", model: "Krea2", extra: "" },
+    { image: "images/Realistic/22.png", alt: "Realistic 22", title: "Realistic 22", description: "Realistic collection artwork.", model: "Krea2", extra: "" },
+    { image: "images/Realistic/23.png", alt: "Realistic 23", title: "Realistic 23", description: "Realistic collection artwork.", model: "Krea2", extra: "" },
+    { image: "images/Realistic/24.png", alt: "Realistic 24", title: "Realistic 24", description: "Realistic collection artwork.", model: "Krea2", extra: "" },
   ],
 };
 /* AUTO-IMPORT:PORTFOLIO:END */
@@ -193,6 +201,8 @@ const workflowGrid = document.querySelector("#workflow-grid");
 const projectGrid = document.querySelector("#project-grid");
 const pageStage = document.querySelector("#page-stage");
 const pagePanels = [...document.querySelectorAll("[data-page]")];
+let pageResizeObserver = null;
+let pageTransitionToken = 0;
 const topbar = document.querySelector(".topbar");
 const menuButton = document.querySelector(".menu-button");
 const navLinks = document.querySelector(".nav-links");
@@ -270,6 +280,10 @@ function setOptimizedImage(image, originalSource) {
       loader.setAttribute("aria-hidden", "true");
     }
     image.setAttribute("aria-busy", "false");
+    const activePanel = image.closest(".page-panel.is-active");
+    if (activePanel) {
+      window.requestAnimationFrame(() => updatePageStageHeight(activePanel));
+    }
   };
   const markFailed = () => {
     if (settled) return;
@@ -653,6 +667,10 @@ function renderProjectPage() {
       '</header>' +
       '<div class="project-shot-grid"></div>';
 
+    // 先挂载案例，再启动图片请求。这样懒加载图片有真实的页面位置，
+    // 首次进入 Project 时不会只触发第一张图。
+    projectGrid.appendChild(projectCase);
+
     const shotGrid = projectCase.querySelector(".project-shot-grid");
     orderedItems.forEach((item, itemIndex) => {
       const shotLabel = note.shotLabels?.[item.fileName] || item.fileName.replace(/\.[^.]+$/, "");
@@ -665,11 +683,9 @@ function renderProjectPage() {
         '<span class="project-shot-caption"><span>' + escapeProjectText(shotLabel) + '</span><span>' + String(itemIndex + 1).padStart(2, "0") + '</span></span>' +
         '</button>';
       shot.querySelector(".project-shot-button").addEventListener("click", () => openPortfolioLightbox(lightboxItems, itemIndex));
-      setOptimizedImage(shot.querySelector("img"), item.image);
       shotGrid.appendChild(shot);
+      setOptimizedImage(shot.querySelector("img"), item.image);
     });
-
-    projectGrid.appendChild(projectCase);
   });
 }
 
@@ -688,6 +704,24 @@ function getPagePanelHeight(panel) {
 function updatePageStageHeight(panel = pagePanels.find((item) => item.classList.contains("is-active"))) {
   if (!pageStage || !panel) return;
   pageStage.style.height = getPagePanelHeight(panel) + "px";
+}
+
+function observeActivePageHeight(panel) {
+  if (pageResizeObserver) {
+    pageResizeObserver.disconnect();
+    pageResizeObserver = null;
+  }
+  if (!panel) return;
+
+  const content = panel.querySelector(".archive-main") || panel;
+  if (typeof ResizeObserver === "undefined") return;
+
+  pageResizeObserver = new ResizeObserver(() => {
+    if (panel.classList.contains("is-active")) {
+      updatePageStageHeight(panel);
+    }
+  });
+  pageResizeObserver.observe(content);
 }
 
 function updateNavigationState(requestedPage) {
@@ -716,9 +750,12 @@ function setActivePage(pageName, updateUrl = true) {
       history.replaceState(null, "", requestedPage === "home" ? "#top" : "#" + requestedPage);
     }
     updateNavigationState(requestedPage);
+    observeActivePageHeight(currentPanel);
+    updatePageStageHeight(currentPanel);
     return;
   }
 
+  const transitionToken = ++pageTransitionToken;
   document.body.dataset.page = requestedPage;
   const stageHeight = pageStage ? pageStage.getBoundingClientRect().height : 0;
   if (pageStage && stageHeight) pageStage.style.height = stageHeight + "px";
@@ -736,16 +773,25 @@ function setActivePage(pageName, updateUrl = true) {
     }
     panel.setAttribute("aria-hidden", String(!isActive));
   });
+  observeActivePageHeight(nextPanel);
   window.requestAnimationFrame(() => {
+    if (transitionToken !== pageTransitionToken) return;
     if (pageStage) {
       pageStage.style.height = getPagePanelHeight(nextPanel) + "px";
     }
   });
   window.setTimeout(() => {
+    if (transitionToken !== pageTransitionToken) return;
     if (currentPanel) {
       currentPanel.hidden = true;
       currentPanel.classList.remove("is-leaving");
     }
+    pagePanels.forEach((panel) => {
+      if (panel !== nextPanel && panel !== currentPanel) {
+        panel.hidden = true;
+        panel.classList.remove("is-active", "is-leaving");
+      }
+    });
     updatePageStageHeight(nextPanel);
   }, 680);
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -910,9 +956,9 @@ const imageBoardItems = [
 const boardCopyBlocks = [
   {
     className: "image-board-copy-lead",
-    column: 4,
+    column: 1,
     row: 1,
-    columns: 1,
+    columns: 2,
     rows: 2,
     mobileColumns: 2,
     mobileRows: 2,
