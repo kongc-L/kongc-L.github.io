@@ -230,13 +230,39 @@ function setOptimizedImage(image, originalSource) {
   if (!image || !originalSource) return;
   // 普通页面只请求低分辨率预览图，预览图缺失时才回退到原图。
   const previewSource = previewImagePath(originalSource);
+  const loadingHost = image.parentElement;
+  if (loadingHost) {
+    let loader = loadingHost.querySelector(".image-loader");
+    if (!loader) {
+      loader = document.createElement("span");
+      loader.className = "image-loader";
+      loader.setAttribute("role", "status");
+      loader.setAttribute("aria-label", "正在加载图片");
+      loader.setAttribute("aria-hidden", "true");
+      loader.innerHTML = "<i></i><i></i><i></i><i></i>";
+      loadingHost.appendChild(loader);
+    }
+    loadingHost.classList.add("is-image-loading");
+  }
+  image.setAttribute("aria-busy", "true");
   image.dataset.originalSource = originalSource;
+  const finishLoading = () => {
+    if (loadingHost) loadingHost.classList.remove("is-image-loading");
+    image.setAttribute("aria-busy", "false");
+  };
+  image.addEventListener("load", finishLoading, { once: true });
   image.addEventListener("error", () => {
-    if (image.dataset.previewFallback === "true") return;
+    if (image.dataset.previewFallback === "true") {
+      finishLoading();
+      return;
+    }
     image.dataset.previewFallback = "true";
+    image.addEventListener("load", finishLoading, { once: true });
+    image.addEventListener("error", finishLoading, { once: true });
     image.src = originalSource;
   }, { once: true });
   image.src = previewSource;
+  if (image.complete && image.naturalWidth) finishLoading();
 }
 
 function setLightboxLoading(isLoading) {
@@ -274,7 +300,6 @@ function requestLightboxOriginal() {
     lightboxOriginalFailed = false;
     lightboxImage.classList.add("is-hires");
     lightboxImage.src = lightboxOriginalSource;
-    setLightboxLoading(false);
     applyLightboxTransform();
   };
   originalImage.onerror = () => {
@@ -353,15 +378,29 @@ function renderArtwork(index) {
   lightboxOriginalLoaded = false;
   lightboxOriginalLoading = false;
   lightboxOriginalFailed = false;
-  setLightboxLoading(false);
+  setLightboxLoading(true);
   updateLightboxZoom(1, true);
   lightboxImage.classList.remove("is-hires");
+  const artworkToken = lightboxLoadToken;
+  lightboxImage.onload = () => {
+    if (artworkToken !== lightboxLoadToken) return;
+    setLightboxLoading(false);
+    applyLightboxTransform();
+  };
   lightboxImage.onerror = () => {
+    if (artworkToken !== lightboxLoadToken) return;
     if (lightboxOriginalSource === artwork.image && lightboxImage.src !== new URL(artwork.image, document.baseURI).href) {
+      setLightboxLoading(true);
       lightboxImage.src = artwork.image;
+      return;
     }
+    setLightboxLoading(false);
   };
   lightboxImage.src = lightboxPreviewSource || artwork.image;
+  if (lightboxImage.complete && lightboxImage.naturalWidth) {
+    setLightboxLoading(false);
+    applyLightboxTransform();
+  }
   lightboxImage.alt = artwork.alt;
   lightboxKicker.textContent = artwork.kicker;
   lightboxTitle.textContent = artwork.title;
@@ -1024,6 +1063,7 @@ const carouselItems = [
 const carouselRoot = document.querySelector(".parallax-carousel");
 const carouselView = document.querySelector("#carousel-view");
 const carouselFront = document.querySelector(".carousel-front");
+const carouselImageFrame = document.querySelector(".carousel-image-frame");
 const carouselRail = document.querySelector(".carousel-rail");
 const carouselMarkers = document.querySelector(".carousel-markers");
 const carouselLayers = document.querySelectorAll(".carousel-main-image");
@@ -1075,6 +1115,13 @@ function preloadCarouselImage(index) {
   return promise;
 }
 
+function setCarouselLoading(isLoading) {
+  if (!carouselImageFrame) return;
+  carouselImageFrame.classList.toggle("is-loading", isLoading);
+  const loader = carouselImageFrame.querySelector(".carousel-image-loader");
+  if (loader) loader.setAttribute("aria-hidden", String(!isLoading));
+}
+
 function buildCarouselControls() {
   carouselItems.forEach((item, index) => {
     const marker = document.createElement("button");
@@ -1090,10 +1137,30 @@ function buildCarouselControls() {
     thumb.type = "button";
     thumb.dataset.index = String(index);
     thumb.setAttribute("aria-label", "查看第 " + String(index + 1) + " 张作品：" + item[0]);
-    thumb.innerHTML = '<span class="carousel-thumb-image"></span><span class="carousel-thumb-label">' + item[0] + "</span>";
+    thumb.innerHTML = '<span class="carousel-thumb-image"></span><span class="carousel-thumb-loader" role="status" aria-label="正在加载缩略图" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="carousel-thumb-label">' + item[0] + "</span>";
     thumb.addEventListener("click", () => switchCarousel(index));
     carouselRail.appendChild(thumb);
   });
+}
+
+function getCarouselLightboxItems() {
+  return carouselItems.map((item) => ({
+    image: item[2],
+    alt: item[0],
+    kicker: "FEATURED VISUAL / BANNER",
+    title: item[0],
+    description: item[1],
+    model: "",
+    extra: "",
+  }));
+}
+
+function handleCarouselImageClick(event) {
+  const layer = event.currentTarget;
+  const index = Number(layer.dataset.carouselIndex);
+  if (!Number.isInteger(index) || index < 0 || index >= carouselItems.length) return;
+  event.preventDefault();
+  openPortfolioLightbox(getCarouselLightboxItems(), index);
 }
 
 function updateCarouselMeta(index) {
@@ -1113,11 +1180,15 @@ function updateCarouselMeta(index) {
 function loadCarouselThumb(thumb, index) {
   if (!thumb || thumb.dataset.loaded === "true" || thumb.dataset.loading === "true") return;
   thumb.dataset.loading = "true";
+  thumb.classList.add("is-thumb-loading");
   const thumbImage = thumb.querySelector(".carousel-thumb-image");
+  const thumbLoader = thumb.querySelector(".carousel-thumb-loader");
   preloadCarouselImage(index).then((source) => {
     thumbImage.style.backgroundImage = "url('" + source + "')";
     thumb.dataset.loaded = "true";
     thumb.dataset.loading = "false";
+    thumb.classList.remove("is-thumb-loading");
+    if (thumbLoader) thumbLoader.setAttribute("aria-hidden", "true");
   });
 }
 
@@ -1155,12 +1226,14 @@ function switchCarousel(nextIndex, direction) {
   const newLayer = carouselLayers[carouselLayerIndex];
   const transitionToken = ++carouselTransitionToken;
   carouselTransitioning = true;
+  setCarouselLoading(true);
 
   preloadCarouselImage(normalizedIndex).then((source) => {
     if (transitionToken !== carouselTransitionToken) return;
 
     newLayer.style.backgroundImage = "url('" + source + "')";
     newLayer.href = carouselImage(normalizedIndex);
+    newLayer.dataset.carouselIndex = String(normalizedIndex);
     newLayer.style.transformOrigin = moveDirection === "left" ? "right bottom" : "left top";
     oldLayer.style.transformOrigin = moveDirection === "left" ? "left top" : "right bottom";
     newLayer.classList.remove("is-visible", "is-leaving", "is-entering");
@@ -1191,6 +1264,11 @@ function switchCarousel(nextIndex, direction) {
       newLayer.classList.add("is-visible");
       newLayer.classList.remove("is-entering");
       oldLayer.classList.add("is-leaving");
+      newLayer.setAttribute("aria-hidden", "false");
+      newLayer.tabIndex = 0;
+      oldLayer.setAttribute("aria-hidden", "true");
+      oldLayer.tabIndex = -1;
+      setCarouselLoading(false);
     });
     window.setTimeout(finishTransition, 560);
 
@@ -1203,8 +1281,17 @@ function switchCarousel(nextIndex, direction) {
 function initializeCarousel() {
   if (!carouselRoot || !carouselItems.length) return;
   buildCarouselControls();
+  carouselLayers.forEach((layer, index) => {
+    layer.setAttribute("aria-hidden", String(index !== 0));
+    layer.tabIndex = index === 0 ? 0 : -1;
+    layer.addEventListener("click", handleCarouselImageClick);
+  });
+  setCarouselLoading(true);
   preloadCarouselImage(0).then((source) => {
     carouselLayers[0].style.backgroundImage = "url('" + source + "')";
+    carouselLayers[0].href = carouselImage(0);
+    carouselLayers[0].dataset.carouselIndex = "0";
+    setCarouselLoading(false);
   });
   if (carouselItems.length > 1) {
     preloadCarouselImage(1).then((source) => {
