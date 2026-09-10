@@ -971,6 +971,38 @@ const boardCopyBlocks = [
   },
 ];
 
+// Travel board 底部横向图片旁的文案卡：对应 Display Column/8.png 和 10.png。
+const boardWideCopyBlocks = {
+  8: {
+    className: "image-board-copy-wind",
+    eyebrow: "WIND / FIELD NOTE",
+    number: "08",
+    title: "Let the wind carry the day.",
+    text: "风从海岸线穿过，带着阳光、盐和远方的方向。",
+    mark: "↗",
+  },
+  10: {
+    className: "image-board-copy-horizon",
+    eyebrow: "COASTLINE / 010",
+    number: "10",
+    title: "The horizon keeps moving.",
+    text: "当海面铺开，远处的风景也变成了旅途的一部分。",
+    mark: "↘",
+  },
+};
+
+function createBoardCopy(block, extraClass = "") {
+  const copy = document.createElement("article");
+  copy.className = "image-board-copy " + extraClass + " " + (block.className || "");
+  copy.innerHTML =
+    '<p class="image-board-copy-eyebrow">' + block.eyebrow + '</p>' +
+    (block.number ? '<strong class="image-board-copy-number">' + block.number + '</strong>' : '') +
+    '<h3>' + block.title + '</h3>' +
+    '<p class="image-board-copy-text">' + block.text + '</p>' +
+    '<span class="image-board-copy-mark" aria-hidden="true">' + block.mark + '</span>';
+  return copy;
+}
+
 function renderBoardImages() {
   if (!boardGrid) return;
   boardGrid.replaceChildren();
@@ -985,16 +1017,46 @@ function renderBoardImages() {
     copy.style.setProperty("--board-rows", String(block.rows));
     copy.style.setProperty("--board-mobile-columns", String(block.mobileColumns));
     copy.style.setProperty("--board-mobile-rows", String(block.mobileRows));
-    copy.innerHTML =
-      '<p class="image-board-copy-eyebrow">' + block.eyebrow + '</p>' +
-      (block.number ? '<strong class="image-board-copy-number">' + block.number + '</strong>' : '') +
-      '<h3>' + block.title + '</h3>' +
-      '<p class="image-board-copy-text">' + block.text + '</p>' +
-      '<span class="image-board-copy-mark" aria-hidden="true">' + block.mark + '</span>';
+    copy.innerHTML = createBoardCopy(block).innerHTML;
     boardGrid.appendChild(copy);
   });
 
   imageBoardItems.forEach((item, index) => {
+    const itemNumber = index + 1;
+    const wideCopy = boardWideCopyBlocks[itemNumber];
+    if (wideCopy) {
+      const wideTile = document.createElement("div");
+      wideTile.className = "image-board-wide";
+      wideTile.style.setProperty("--board-column", String(item.column || 1));
+      wideTile.style.setProperty("--board-row", String(item.row || 1));
+      wideTile.style.setProperty("--board-columns", String(item.columns || 5));
+      wideTile.style.setProperty("--board-rows", String(item.rows || 2));
+      wideTile.style.setProperty("--board-mobile-columns", String(item.mobileColumns || 2));
+      wideTile.style.setProperty("--board-mobile-rows", String(item.mobileRows || 2));
+
+      const imageTile = document.createElement("button");
+      imageTile.className = "image-board-tile image-board-wide-tile";
+      imageTile.type = "button";
+      imageTile.style.setProperty("--board-aspect", item.aspect || "4 / 3");
+      imageTile.setAttribute("aria-label", "查看图片：" + item.title);
+      imageTile.innerHTML =
+        '<span class="image-board-media">' +
+        '<img alt="' + item.alt + '" loading="lazy" decoding="async" />' +
+        '<span class="image-board-tile-label">' + String(itemNumber).padStart(2, "0") + '</span>' +
+        '</span>';
+
+      const tileImage = imageTile.querySelector(".image-board-media img");
+      setOptimizedImage(tileImage, item.image);
+      tileImage.style.objectPosition = item.position || "center center";
+      tileImage.style.objectFit = item.fit || "cover";
+      imageTile.addEventListener("click", () => openPortfolioLightbox(imageBoardItems, index));
+
+      wideTile.appendChild(imageTile);
+      wideTile.appendChild(createBoardCopy(wideCopy, "image-board-wide-copy"));
+      boardGrid.appendChild(wideTile);
+      return;
+    }
+
     const tile = document.createElement("button");
     tile.className = "image-board-tile";
     tile.type = "button";
@@ -1491,6 +1553,139 @@ function initializeCarouselParticles() {
   drawParticles();
 }
 
+function initializeAmbientBubbles() {
+  const canvas = document.querySelector("#ambient-bubbles");
+  if (!canvas) return;
+
+  const context = canvas.getContext("2d");
+  if (!context) return;
+
+  const bubbles = [];
+  const bubbleCount = 42;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let width = 0;
+  let height = 0;
+  let deviceScale = 1;
+  let targetScrollY = window.scrollY;
+  let previousScrollY = window.scrollY;
+  let lastFrameTime = 0;
+
+  function getShellWidth(viewportWidth) {
+    if (viewportWidth <= 480) return Math.min(viewportWidth - 28, 620);
+    if (viewportWidth <= 800) return Math.min(viewportWidth - 36, 620);
+    return Math.min(viewportWidth - 72, 1440);
+  }
+
+  function randomBetween(min, max) {
+    return min + Math.random() * (max - min);
+  }
+
+  function seedBubbles() {
+    const shellWidth = getShellWidth(width);
+    const gutterWidth = Math.max(0, (width - shellWidth) / 2);
+    bubbles.length = 0;
+
+    for (let index = 0; index < bubbleCount; index += 1) {
+      const onLeft = index % 2 === 0;
+      let x;
+
+      if (gutterWidth > 58) {
+        const safeGutter = Math.max(26, gutterWidth - 16);
+        x = onLeft
+          ? randomBetween(14, safeGutter)
+          : width - randomBetween(14, safeGutter);
+      } else {
+        x = onLeft
+          ? randomBetween(10, Math.max(18, width * 0.13))
+          : randomBetween(Math.min(width - 18, width * 0.87), width - 10);
+      }
+
+      bubbles.push({
+        x,
+        y: randomBetween(-20, height + 20),
+        radius: randomBetween(2.2, gutterWidth > 140 ? 11.5 : 8.5),
+        alpha: randomBetween(0.12, 0.34),
+        speed: randomBetween(7, 20),
+        sway: randomBetween(0.35, 0.9),
+        swayAmount: randomBetween(2, 9),
+        phase: randomBetween(0, Math.PI * 2),
+        drift: randomBetween(-0.12, 0.12),
+      });
+    }
+  }
+
+  function resizeCanvas() {
+    deviceScale = Math.min(window.devicePixelRatio || 1, 2);
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = Math.round(width * deviceScale);
+    canvas.height = Math.round(height * deviceScale);
+    canvas.style.width = width + "px";
+    canvas.style.height = height + "px";
+    context.setTransform(deviceScale, 0, 0, deviceScale, 0, 0);
+    seedBubbles();
+  }
+
+  function drawBubble(bubble, time) {
+    const x = bubble.x + Math.sin(time * bubble.sway + bubble.phase) * bubble.swayAmount;
+    const y = bubble.y;
+    const edgeAlpha = bubble.alpha;
+
+    context.beginPath();
+    context.arc(x, y, bubble.radius, 0, Math.PI * 2);
+    context.fillStyle = "rgba(104, 98, 94, " + (edgeAlpha * 0.1) + ")";
+    context.fill();
+    context.lineWidth = Math.max(0.7, bubble.radius * 0.11);
+    context.strokeStyle = "rgba(104, 98, 94, " + edgeAlpha + ")";
+    context.stroke();
+
+    context.beginPath();
+    context.arc(
+      x - bubble.radius * 0.31,
+      y - bubble.radius * 0.34,
+      Math.max(0.7, bubble.radius * 0.16),
+      0,
+      Math.PI * 2,
+    );
+    context.fillStyle = "rgba(255, 253, 250, " + (edgeAlpha * 0.62) + ")";
+    context.fill();
+  }
+
+  function renderFrame(timestamp) {
+    const time = timestamp / 1000;
+    const elapsed = lastFrameTime ? Math.min(0.05, (timestamp - lastFrameTime) / 1000) : 0;
+    const scrollDelta = targetScrollY - previousScrollY;
+    lastFrameTime = timestamp;
+    previousScrollY = targetScrollY;
+    context.clearRect(0, 0, width, height);
+
+    bubbles.forEach((bubble) => {
+      if (!reduceMotion) {
+        bubble.y -= bubble.speed * elapsed;
+        bubble.y -= scrollDelta * 0.16;
+        bubble.x += bubble.drift * elapsed * 10;
+      }
+
+      if (bubble.y < -bubble.radius - 28) {
+        bubble.y = height + bubble.radius + randomBetween(8, 80);
+      }
+      if (bubble.x < -24) bubble.x = width + 24;
+      if (bubble.x > width + 24) bubble.x = -24;
+      drawBubble(bubble, time);
+    });
+
+    window.requestAnimationFrame(renderFrame);
+  }
+
+  window.addEventListener("scroll", () => {
+    targetScrollY = window.scrollY;
+  }, { passive: true });
+  window.addEventListener("resize", resizeCanvas);
+  resizeCanvas();
+  window.requestAnimationFrame(renderFrame);
+}
+
 initializeCarousel();
 initializeCarouselParallax();
 initializeCarouselParticles();
+initializeAmbientBubbles();

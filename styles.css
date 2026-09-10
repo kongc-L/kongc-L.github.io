@@ -14,6 +14,7 @@
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body {
+  position: relative;
   min-width: 320px;
   margin: 0;
   color: var(--ink);
@@ -27,7 +28,17 @@ button { border: 0; }
 a { text-decoration: none; }
 img { display: block; max-width: 100%; }
 
-.site-shell { width: min(100% - 72px, 1440px); margin: 0 auto; }
+.ambient-bubbles {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.site-shell { position: relative; z-index: 1; width: min(100% - 72px, 1440px); margin: 0 auto; }
 .topbar {
   position: sticky;
   top: 0;
@@ -316,6 +327,37 @@ h2 span { color: var(--muted); font-family: var(--body); font-size: 13px; font-w
 .image-board-copy-mark { align-self: end; margin-top: 9px; color: var(--rose); font-family: var(--display); font-size: 25px; line-height: 0.8; }
 .image-board-copy-quote { background: #f1e9e1; }
 .image-board-copy-quote h3 { max-width: 170px; font-size: 22px; }
+.image-board-wide {
+  position: relative;
+  display: flex;
+  grid-column: var(--board-column, 1) / span var(--board-columns, 5);
+  grid-row: var(--board-row, 1) / span var(--board-rows, 2);
+  min-width: 0;
+  min-height: 0;
+  gap: 13px;
+  overflow: hidden;
+}
+.image-board-wide-tile {
+  display: block;
+  flex: 0 0 calc(68% - 6px);
+  width: auto;
+  height: 100%;
+  min-width: 0;
+}
+.image-board-wide-tile .image-board-media { width: 100%; height: 100%; aspect-ratio: 4 / 3; }
+.image-board-wide-copy {
+  position: relative;
+  flex: 1 1 0;
+  width: auto;
+  height: 100%;
+  min-width: 0;
+  grid-column: auto;
+  grid-row: auto;
+}
+.image-board-copy-wind { background: #e8ddd3; }
+.image-board-copy-horizon { background: #f1e9e1; }
+.image-board-wide-copy h3 { max-width: 180px; }
+.image-board-wide-copy .image-board-copy-text { max-width: 190px; }
 .lightbox { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 34px; visibility: hidden; opacity: 0; transition: opacity 260ms ease, visibility 260ms ease; }
 .lightbox.is-open { visibility: visible; opacity: 1; }
 .lightbox-backdrop { position: absolute; inset: 0; background: rgba(20, 18, 16, 0.88); cursor: pointer; }
@@ -407,6 +449,7 @@ h2 span { color: var(--muted); font-family: var(--body); font-size: 13px; font-w
   .image-board-heading { display: block; margin-bottom: 28px; }
   .image-board { min-height: 360px; }
   .image-board-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: 170px; gap: 9px; padding: 10px 10px 14px; }
+  .image-board-wide { grid-column: span var(--board-mobile-columns, 2); grid-row: auto; }
   .lightbox { padding: 18px; }
   .lightbox-panel { display: block; width: min(100%, 470px); height: auto; max-height: calc(100vh - 36px); }
   .lightbox-media { min-height: 0; height: min(67vh, 560px); }
@@ -441,6 +484,11 @@ h2 span { color: var(--muted); font-family: var(--body); font-size: 13px; font-w
   .portfolio-grid { grid-template-columns: 1fr; gap: 42px; }
   .image-board-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: 145px; gap: 7px; padding: 9px; }
   .image-board-tile, .image-board-copy { grid-column: span var(--board-mobile-columns, 1); grid-row: auto; }
+  .image-board-wide { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(104px, 0.8fr); gap: 7px; }
+  .image-board-wide-tile { width: auto; height: 100%; flex: none; }
+  .image-board-wide-copy { width: auto; height: 100%; }
+  .image-board-wide > .image-board-wide-tile,
+  .image-board-wide > .image-board-wide-copy { grid-column: auto; grid-row: auto; }
   .image-board-tile { aspect-ratio: auto; display: block; }
   .image-board-media { width: 100%; height: 100%; aspect-ratio: auto; }
   .image-board-media img { padding: 0; }
@@ -448,6 +496,9 @@ h2 span { color: var(--muted); font-family: var(--body); font-size: 13px; font-w
   .image-board-copy-number { font-size: 50px; }
   .image-board-copy h3 { font-size: 20px; }
   .image-board-copy-text { font-size: 9px; }
+  .image-board-wide-copy { padding: 13px 10px 11px; }
+  .image-board-wide-copy h3 { max-width: 100%; font-size: 16px; }
+  .image-board-wide-copy .image-board-copy-text { max-width: 100%; font-size: 8px; }
   .image-board-note { flex-wrap: wrap; gap: 8px 10px; min-height: 58px; padding: 8px 10px; }
   .image-board-note strong { margin-left: auto; }
   .image-board-note-status { width: 100%; padding-left: 32px; }
