@@ -229,19 +229,19 @@ let lightboxOriginalFailed = false;
 let lightboxLoadToken = 0;
 
 function previewImagePath(source) {
-  if (!source || !source.startsWith("images/") || source.startsWith("images/_preview/")) {
+  if (!source || !source.startsWith("images/") || source.startsWith("images/preview/")) {
     return source;
   }
   const relativePath = source.slice("images/".length);
   const lastSlash = relativePath.lastIndexOf("/");
   const directory = lastSlash >= 0 ? relativePath.slice(0, lastSlash + 1) : "";
   const fileName = relativePath.slice(lastSlash + 1).replace(/\.[^.]+$/, ".jpg");
-  return "images/_preview/" + directory + fileName;
+  return "images/preview/" + directory + fileName;
 }
 
 function setOptimizedImage(image, originalSource) {
   if (!image || !originalSource) return;
-  // 普通页面只请求低分辨率预览图，预览图缺失时才回退到原图。
+  // 普通页面只请求低分辨率预览图；原图只在 Lightbox 放大时请求。
   const previewSource = previewImagePath(originalSource);
   const loadingHost = image.parentElement;
   let loader = null;
@@ -1175,16 +1175,8 @@ function preloadCarouselImage(index) {
   const promise = new Promise((resolve) => {
     const previewImage = new Image();
     previewImage.onload = () => resolve(previewSource);
-    previewImage.onerror = () => {
-      if (previewSource === originalSource) {
-        resolve(originalSource);
-        return;
-      }
-      const originalImage = new Image();
-      originalImage.onload = () => resolve(originalSource);
-      originalImage.onerror = () => resolve(originalSource);
-      originalImage.src = originalSource;
-    };
+    // 轮播图不回退到原图，避免页面首次加载时下载大 PNG。
+    previewImage.onerror = () => resolve(null);
     previewImage.src = previewSource;
   });
   carouselImageCache.set(originalSource, promise);
@@ -1260,6 +1252,13 @@ function loadCarouselThumb(thumb, index) {
   const thumbImage = thumb.querySelector(".carousel-thumb-image");
   const thumbLoader = thumb.querySelector(".carousel-thumb-loader");
   preloadCarouselImage(index).then((source) => {
+    if (!source) {
+      thumb.dataset.loading = "false";
+      thumb.classList.remove("is-thumb-loading");
+      thumb.classList.add("is-thumb-error");
+      if (thumbLoader) thumbLoader.setAttribute("aria-hidden", "false");
+      return;
+    }
     thumbImage.style.backgroundImage = "url('" + source + "')";
     thumb.dataset.loaded = "true";
     thumb.dataset.loading = "false";
@@ -1306,6 +1305,11 @@ function switchCarousel(nextIndex, direction) {
 
   preloadCarouselImage(normalizedIndex).then((source) => {
     if (transitionToken !== carouselTransitionToken) return;
+    if (!source) {
+      carouselTransitioning = false;
+      setCarouselLoading(false);
+      return;
+    }
 
     newLayer.style.backgroundImage = "url('" + source + "')";
     newLayer.href = carouselImage(normalizedIndex);
@@ -1364,6 +1368,10 @@ function initializeCarousel() {
   });
   setCarouselLoading(true);
   preloadCarouselImage(0).then((source) => {
+    if (!source) {
+      setCarouselLoading(false);
+      return;
+    }
     carouselLayers[0].style.backgroundImage = "url('" + source + "')";
     carouselLayers[0].href = carouselImage(0);
     carouselLayers[0].dataset.carouselIndex = "0";
@@ -1371,7 +1379,7 @@ function initializeCarousel() {
   });
   if (carouselItems.length > 1) {
     preloadCarouselImage(1).then((source) => {
-      carouselLayers[1].style.backgroundImage = "url('" + source + "')";
+      if (source) carouselLayers[1].style.backgroundImage = "url('" + source + "')";
     });
   } else {
     carouselLayers[1].style.backgroundImage = "url('" + carouselDisplayImage(0) + "')";
